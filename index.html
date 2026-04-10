@@ -32,9 +32,14 @@
         <a href="/admin/locations/new" class="nav-link" data-nav="/admin/locations/new">Thêm địa điểm</a>
         <a href="/admin/suggestions" class="nav-link" data-nav="/admin/suggestions">Đề xuất</a>
       </span>
+      <!-- Chỉ hiển thị cho member (không phải admin/founder) -->
       <span id="nav-user-link" style="display:none;">
         <a href="/profile" class="nav-link" data-nav="/profile">Hồ sơ</a>
         <a href="/suggest" class="nav-link" data-nav="/suggest">Đề xuất địa điểm</a>
+      </span>
+      <!-- Hồ sơ cho admin/founder (không có đề xuất địa điểm) -->
+      <span id="nav-admin-profile" style="display:none;">
+        <a href="/profile" class="nav-link" data-nav="/profile">Hồ sơ</a>
       </span>
 
       <!-- Mobile-only: user/guest actions inside burger menu -->
@@ -146,15 +151,19 @@
     const isFounder  = userData?.role === 'founder';
     const isPriv     = isAdmin || isFounder;
 
-    const guestEl    = document.getElementById('nav-guest');
-    const userEl     = document.getElementById('nav-user');
-    const adminEl    = document.getElementById('nav-admin');
-    const userLinkEl = document.getElementById('nav-user-link');
+    const guestEl        = document.getElementById('nav-guest');
+    const userEl         = document.getElementById('nav-user');
+    const adminEl        = document.getElementById('nav-admin');
+    const userLinkEl     = document.getElementById('nav-user-link');
+    const adminProfileEl = document.getElementById('nav-admin-profile');
 
-    if (guestEl)    guestEl.style.display    = isLoggedIn ? 'none'   : 'flex';
-    if (userEl)     userEl.style.display     = isLoggedIn ? 'flex'   : 'none';
-    if (adminEl)    adminEl.style.display    = isPriv     ? 'inline' : 'none';
-    if (userLinkEl) userLinkEl.style.display = isLoggedIn ? 'inline' : 'none';
+    if (guestEl)        guestEl.style.display        = isLoggedIn ? 'none'   : 'flex';
+    if (userEl)         userEl.style.display         = isLoggedIn ? 'flex'   : 'none';
+    if (adminEl)        adminEl.style.display        = isPriv     ? 'inline' : 'none';
+    // "Đề xuất địa điểm" chỉ hiện cho member thường (không phải admin/founder)
+    if (userLinkEl)     userLinkEl.style.display     = (isLoggedIn && !isPriv) ? 'inline' : 'none';
+    // Hồ sơ cho admin/founder
+    if (adminProfileEl) adminProfileEl.style.display = isPriv     ? 'inline' : 'none';
 
     // Sync mobile menu
     const mobGuest = document.getElementById('mob-nav-guest');
