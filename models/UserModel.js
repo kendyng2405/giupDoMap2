@@ -16,10 +16,7 @@ import {
 import {
   ref, uploadBytes, getDownloadURL
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
-import {
-  getFunctions,
-  httpsCallable
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
+
 
 export const RANKS = [
   { name: "Đồng Lòng",     minPoints: 0,  color: "#CD7F32", next: 5  },
@@ -142,9 +139,22 @@ export const UserModel = {
   // FIX #8: Gọi Cloud Function để xóa cả Auth account lẫn Firestore doc
   // (Client SDK không thể xóa Auth account của người khác)
   async deleteUser(uid) {
-    const functions = getFunctions();
-    const deleteUserFn = httpsCallable(functions, "deleteUser");
-    await deleteUserFn({ uid });
+    const user = auth.currentUser;
+    if (!user) throw new Error("Chưa đăng nhập.");
+    const idToken = await user.getIdToken();
+    const res = await fetch(
+      "https://us-central1-kdhelpmap.cloudfunctions.net/deleteUser",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({ uid }),
+      }
+    );
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Lỗi xóa người dùng.");
   },
 
   // Founder: update role
