@@ -32,15 +32,18 @@ export const SuggestionController = {
 
 // ── Form đề xuất (member) ─────────────────────────────────
 function _initSuggestionForm(user, userData) {
-  // Map picker
   const mapEl = document.getElementById("suggest-map");
   if (!mapEl) return;
 
   let pickerMap = L.map("suggest-map", {
     center: [16.047, 108.206], zoom: 6,
   });
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "© OpenStreetMap", maxZoom: 19,
+
+  // FIX: Dùng Google Maps tile thay vì OpenStreetMap
+  L.tileLayer("https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
+    subdomains: ["mt0", "mt1", "mt2", "mt3"],
+    attribution: '&copy; <a href="https://www.google.com/maps">Google Maps</a>',
+    maxZoom: 20,
   }).addTo(pickerMap);
 
   let pickerMarker = null;
@@ -65,7 +68,6 @@ function _initSuggestionForm(user, userData) {
     _reverseGeocode(e.latlng.lat, e.latlng.lng, "suggest-address");
   });
 
-  // Nút lấy vị trí hiện tại
   document.getElementById("suggest-locate")?.addEventListener("click", () => {
     if (!navigator.geolocation) { Toast.show("Trình duyệt không hỗ trợ định vị.", "error"); return; }
     navigator.geolocation.getCurrentPosition(pos => {
@@ -76,7 +78,6 @@ function _initSuggestionForm(user, userData) {
     }, () => Toast.show("Không thể lấy vị trí.", "error"));
   });
 
-  // Preview ảnh
   document.getElementById("suggest-img-input")?.addEventListener("change", function() {
     const file = this.files[0];
     if (!file) return;
@@ -84,7 +85,6 @@ function _initSuggestionForm(user, userData) {
     if (wrap) { wrap.src = URL.createObjectURL(file); wrap.style.display = "block"; }
   });
 
-  // Submit
   document.getElementById("suggest-form")?.addEventListener("submit", async e => {
     e.preventDefault();
     const btn = e.target.querySelector("[type=submit]");
@@ -120,9 +120,8 @@ function _initSuggestionForm(user, userData) {
         submitterName: userData?.fullName || "Ẩn danh",
       };
 
-      const suggestion = await SuggestionModel.create(data, imageFile);
+      await SuggestionModel.create(data, imageFile);
 
-      // Thông báo cho tất cả admin & founder
       const allUsers = await UserModel.getAll();
       const adminUids = allUsers
         .filter(u => u.role === "admin" || u.role === "founder")
@@ -148,7 +147,6 @@ function _initSuggestionForm(user, userData) {
 
 // ── Admin list ────────────────────────────────────────────
 function _initSuggestionList(currentUserData) {
-  // Tab switching
   document.querySelectorAll(".sug-tab").forEach(tab => {
     tab.addEventListener("click", () => {
       document.querySelectorAll(".sug-tab").forEach(t => t.classList.remove("active"));
@@ -159,7 +157,6 @@ function _initSuggestionList(currentUserData) {
     });
   });
 
-  // Event delegation cho Approve / Reject
   document.getElementById("suggestions-wrap")?.addEventListener("click", async e => {
     const approveBtn = e.target.closest(".btn-approve");
     const rejectBtn  = e.target.closest(".btn-reject");
@@ -174,7 +171,6 @@ function _initSuggestionList(currentUserData) {
         const sug = await SuggestionModel.findById(id);
         if (!sug) { Toast.show("Không tìm thấy đề xuất.", "error"); return; }
 
-        // Thêm vào locations
         await LocationModel.create({
           title:       sug.title,
           description: sug.description,
@@ -193,7 +189,6 @@ function _initSuggestionList(currentUserData) {
 
         await SuggestionModel.approve(id, currentUserData?.uid);
 
-        // Thông báo cho người đề xuất
         await NotificationModel.create({
           toUid: sug.submittedBy,
           type:  "suggestion_approved",
@@ -213,10 +208,9 @@ function _initSuggestionList(currentUserData) {
     }
 
     if (rejectBtn) {
-      const id     = rejectBtn.dataset.id;
-      const title  = rejectBtn.dataset.title;
-      const toUid  = rejectBtn.dataset.uid;
-      // Mở modal lý do từ chối
+      const id    = rejectBtn.dataset.id;
+      const title = rejectBtn.dataset.title;
+      const toUid = rejectBtn.dataset.uid;
       _openRejectModal(id, title, toUid, currentUserData);
       return;
     }
@@ -270,15 +264,18 @@ function _openRejectModal(sugId, title, submitterUid, currentUserData) {
   document.getElementById("reject-cancel-btn").onclick  = close;
   modal.onclick = e => { if (e.target === modal) close(); };
 
-  document.getElementById("reject-confirm-btn").onclick = async () => {
+  // FIX: clone button để xóa handler cũ, tránh chồng event listener
+  const oldBtn = document.getElementById("reject-confirm-btn");
+  const newBtn = oldBtn.cloneNode(true);
+  oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+
+  newBtn.onclick = async () => {
     const reason = document.getElementById("reject-reason").value.trim();
     if (!reason) { Toast.show("Vui lòng nhập lý do từ chối.", "error"); return; }
-    const btn = document.getElementById("reject-confirm-btn");
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>';
+    newBtn.disabled = true;
+    newBtn.innerHTML = '<span class="spinner"></span>';
     try {
       await SuggestionModel.reject(sugId, currentUserData?.uid, reason);
-      // Thông báo người đề xuất
       await NotificationModel.create({
         toUid: submitterUid,
         type:  "suggestion_rejected",
@@ -291,8 +288,8 @@ function _openRejectModal(sugId, title, submitterUid, currentUserData) {
       router.navigate("/admin/suggestions");
     } catch (err) {
       Toast.show("Lỗi: " + err.message, "error");
-      btn.disabled = false;
-      btn.textContent = "Xác nhận từ chối";
+      newBtn.disabled = false;
+      newBtn.textContent = "Xác nhận từ chối";
     }
   };
 }
