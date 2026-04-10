@@ -19,7 +19,8 @@ export const AuthController = {
     renderView("login");
     await _nextTick();
     const form = document.getElementById("login-form");
-    if (!form) { console.error("login-form not found"); return; }
+    // Form không còn trong DOM nghĩa là một render mới đã thay thế → bỏ qua
+    if (!form) return;
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const btn = form.querySelector("[type=submit]");
@@ -50,7 +51,7 @@ export const AuthController = {
     renderView("register");
     await _nextTick();
     const form = document.getElementById("register-form");
-    if (!form) { console.error("register-form not found"); return; }
+    if (!form) return;
     form.querySelector("[name=password]")?.addEventListener("input", function() {
       const v = this.value;
       const score = [v.length>=6,v.length>=10,/[A-Z]/.test(v),/[0-9]/.test(v),/[^a-zA-Z0-9]/.test(v)].filter(Boolean).length;
