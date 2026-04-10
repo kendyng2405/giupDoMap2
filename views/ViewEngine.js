@@ -804,6 +804,7 @@ function _suggestionCard(s, status) {
   const time = s.createdAt?.toDate ? s.createdAt.toDate().toLocaleDateString("vi-VN") : "";
 
   const actionBtns = status === "pending" ? `
+    <button class="btn btn--sm btn-check-nearby" data-lat="${s.lat}" data-lng="${s.lng}" data-title="${s.title}" style="background:var(--bg2);color:var(--text1);border:1px solid var(--border);">Xem vị trí</button>
     <button class="btn btn--primary btn--sm btn-approve" data-id="${s.id}" style="min-width:80px;">Duyệt</button>
     <button class="btn btn--ghost btn--sm btn-reject" data-id="${s.id}" data-title="${s.title}" data-uid="${s.submittedBy}">Từ chối</button>
     <button class="btn btn--sm btn-sug-delete" data-id="${s.id}" style="background:var(--bg2);color:var(--text-muted);border:1px solid var(--border);">Xóa</button>
