@@ -39,7 +39,6 @@ function _initSuggestionForm(user, userData) {
     center: [16.047, 108.206], zoom: 6,
   });
 
-  // FIX: Dùng Google Maps tile thay vì OpenStreetMap
   L.tileLayer("https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
     subdomains: ["mt0", "mt1", "mt2", "mt3"],
     attribution: '&copy; <a href="https://www.google.com/maps">Google Maps</a>',
@@ -161,6 +160,16 @@ function _initSuggestionList(currentUserData) {
     const approveBtn = e.target.closest(".btn-approve");
     const rejectBtn  = e.target.closest(".btn-reject");
     const deleteBtn  = e.target.closest(".btn-sug-delete");
+    const checkBtn   = e.target.closest(".btn-check-nearby");
+
+    // FIX: Kiểm tra trùng lặp — mở map xem vị trí gần
+    if (checkBtn) {
+      const lat   = parseFloat(checkBtn.dataset.lat);
+      const lng   = parseFloat(checkBtn.dataset.lng);
+      const title = checkBtn.dataset.title;
+      await _openNearbyModal(lat, lng, title);
+      return;
+    }
 
     if (approveBtn) {
       const id = approveBtn.dataset.id;
@@ -225,6 +234,169 @@ function _initSuggestionList(currentUserData) {
   });
 }
 
+// ── Kiểm tra địa điểm gần (FIX #NEW) ─────────────────────
+// Tính khoảng cách giữa 2 tọa độ (km) theo công thức Haversine
+function _haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) *
+    Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+let _nearbyMap = null;
+
+async function _openNearbyModal(sugLat, sugLng, sugTitle) {
+  // Tạo modal nếu chưa có
+  let modal = document.getElementById("nearby-modal");
+  if (!modal) {
+    modal = document.createElement("div");
+    modal.id = "nearby-modal";
+    modal.className = "modal-backdrop";
+    modal.innerHTML = `
+      <div class="modal-box" style="max-width:720px;width:95%;">
+        <div class="modal-header">
+          <h3>Kiểm tra vị trí gần</h3>
+          <button class="modal-close" id="nearby-modal-close">&times;</button>
+        </div>
+        <div style="padding:16px 20px 0;">
+          <p id="nearby-sug-title" style="font-size:.85rem;color:var(--text2);margin-bottom:12px;"></p>
+          <div id="nearby-map" style="height:340px;border-radius:8px;border:1px solid var(--border);"></div>
+          <div id="nearby-list" style="margin-top:14px;margin-bottom:16px;"></div>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    document.getElementById("nearby-modal-close").onclick = () => {
+      modal.style.display = "none";
+    };
+    modal.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
+  }
+
+  document.getElementById("nearby-sug-title").textContent = `Đề xuất: "${sugTitle}"`;
+  modal.style.display = "flex";
+
+  // Khởi tạo lại map mỗi lần mở
+  if (_nearbyMap) {
+    try { _nearbyMap.off(); _nearbyMap.remove(); } catch(e) {}
+    _nearbyMap = null;
+  }
+
+  await new Promise(r => setTimeout(r, 80));
+
+  _nearbyMap = L.map("nearby-map", { center: [sugLat, sugLng], zoom: 14 });
+  L.tileLayer("https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
+    subdomains: ["mt0", "mt1", "mt2", "mt3"],
+    attribution: '&copy; Google Maps',
+    maxZoom: 20,
+  }).addTo(_nearbyMap);
+
+  // Marker đề xuất (đỏ)
+  const sugIcon = L.divIcon({
+    className: "",
+    html: `<div style="
+      width:14px;height:14px;border-radius:50%;
+      background:#EF4444;border:2px solid white;
+      box-shadow:0 0 0 3px rgba(239,68,68,.35);
+    "></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+  });
+  L.marker([sugLat, sugLng], { icon: sugIcon })
+    .addTo(_nearbyMap)
+    .bindPopup(`<b style="color:#EF4444">Đề xuất mới</b><br>${sugTitle}`)
+    .openPopup();
+
+  // Vẽ vòng tròn bán kính 500m
+  L.circle([sugLat, sugLng], {
+    radius: 500,
+    color: "#EF4444",
+    fillColor: "#EF4444",
+    fillOpacity: 0.07,
+    weight: 1.5,
+    dashArray: "5,5",
+  }).addTo(_nearbyMap);
+
+  // Load tất cả địa điểm hiện có và tìm những cái gần < 500m
+  const listEl = document.getElementById("nearby-list");
+  listEl.innerHTML = `<p style="font-size:.8rem;color:var(--text2);">Đang tải địa điểm...</p>`;
+
+  try {
+    const locations = await LocationModel.findAll(false);
+    const RADIUS_KM = 0.5;
+    const nearby = locations
+      .map(loc => ({ ...loc, dist: _haversine(sugLat, sugLng, loc.lat, loc.lng) }))
+      .filter(loc => loc.dist < RADIUS_KM)
+      .sort((a, b) => a.dist - b.dist);
+
+    // Marker xanh cho các địa điểm hiện có
+    const existingIcon = L.divIcon({
+      className: "",
+      html: `<div style="
+        width:12px;height:12px;border-radius:50%;
+        background:#3B82F6;border:2px solid white;
+        box-shadow:0 0 0 3px rgba(59,130,246,.35);
+      "></div>`,
+      iconSize: [12, 12],
+      iconAnchor: [6, 6],
+    });
+
+    locations.forEach(loc => {
+      const dist = _haversine(sugLat, sugLng, loc.lat, loc.lng);
+      if (dist < 2) { // Hiển thị tất cả địa điểm trong vòng 2km
+        L.marker([loc.lat, loc.lng], { icon: existingIcon })
+          .addTo(_nearbyMap)
+          .bindPopup(`<b>${loc.title}</b><br><span style="font-size:.8rem;color:#6B7280;">${(dist * 1000).toFixed(0)}m</span>`);
+      }
+    });
+
+    // Hiển thị danh sách cảnh báo
+    if (nearby.length === 0) {
+      listEl.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;
+          background:rgba(34,197,94,.1);border-radius:8px;border:1px solid rgba(34,197,94,.3);">
+          <span style="color:#22C55E;font-size:1rem;">✓</span>
+          <span style="font-size:.85rem;color:var(--text1);">Không có địa điểm nào trong bán kính 500m. Vị trí này có thể duyệt.</span>
+        </div>`;
+    } else {
+      const rows = nearby.map(loc => `
+        <div style="display:flex;justify-content:space-between;align-items:center;
+          padding:8px 0;border-bottom:1px solid var(--border);">
+          <div>
+            <div style="font-size:.85rem;font-weight:600;color:var(--text1);">${loc.title}</div>
+            <div style="font-size:.78rem;color:var(--text2);">${loc.address || "Không có địa chỉ"}</div>
+          </div>
+          <span style="
+            font-size:.78rem;font-weight:600;
+            padding:3px 10px;border-radius:20px;white-space:nowrap;
+            background:${loc.dist < 0.1 ? "rgba(239,68,68,.12)" : "rgba(234,179,8,.12)"};
+            color:${loc.dist < 0.1 ? "#EF4444" : "#CA8A04"};
+          ">${(loc.dist * 1000).toFixed(0)}m</span>
+        </div>`).join("");
+
+      listEl.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;
+          background:rgba(239,68,68,.08);border-radius:8px;border:1px solid rgba(239,68,68,.25);
+          margin-bottom:12px;">
+          <span style="color:#EF4444;font-size:1rem;">⚠</span>
+          <span style="font-size:.85rem;color:var(--text1);">
+            Phát hiện <strong>${nearby.length}</strong> địa điểm trong bán kính 500m — kiểm tra trùng lặp trước khi duyệt.
+          </span>
+        </div>
+        <div style="font-size:.8rem;font-weight:600;color:var(--text2);margin-bottom:4px;">
+          ĐỊA ĐIỂM GẦN NHẤT
+        </div>
+        ${rows}`;
+    }
+  } catch(err) {
+    listEl.innerHTML = `<p style="font-size:.8rem;color:#EF4444;">Lỗi tải địa điểm: ${err.message}</p>`;
+  }
+}
+
 function _openRejectModal(sugId, title, submitterUid, currentUserData) {
   let modal = document.getElementById("reject-modal");
   if (!modal) {
@@ -264,7 +436,6 @@ function _openRejectModal(sugId, title, submitterUid, currentUserData) {
   document.getElementById("reject-cancel-btn").onclick  = close;
   modal.onclick = e => { if (e.target === modal) close(); };
 
-  // FIX: clone button để xóa handler cũ, tránh chồng event listener
   const oldBtn = document.getElementById("reject-confirm-btn");
   const newBtn = oldBtn.cloneNode(true);
   oldBtn.parentNode.replaceChild(newBtn, oldBtn);
