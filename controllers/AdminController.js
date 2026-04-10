@@ -242,27 +242,32 @@ function _openWarnModal(uid, name) {
   document.getElementById("warn-cancel-btn").onclick  = close;
   modal.onclick = e => { if (e.target === modal) close(); };
 
-  document.getElementById("warn-confirm-btn").onclick = async () => {
+  // FIX: clone button để xóa toàn bộ event listener cũ,
+  // tránh trường hợp gửi nhầm uid của member trước đó
+  const oldBtn = document.getElementById("warn-confirm-btn");
+  const newBtn = oldBtn.cloneNode(true);
+  oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+
+  newBtn.onclick = async () => {
     const reason = document.getElementById("warn-reason").value.trim();
     if (!reason) { Toast.show("Vui lòng nhập lý do cảnh báo.", "error"); return; }
-    const btn = document.getElementById("warn-confirm-btn");
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>';
+    newBtn.disabled = true;
+    newBtn.innerHTML = '<span class="spinner"></span>';
     try {
       await NotificationModel.create({
         toUid: uid,
         type:  "warning",
         title: "Cảnh báo từ quản trị viên",
         body:  reason,
-        link:  "",
+        link:  "/home",
       });
       Toast.show(`Đã gửi cảnh báo tới ${name}.`);
       close();
     } catch (err) {
       Toast.show("Lỗi gửi cảnh báo: " + err.message, "error");
     }
-    btn.disabled = false;
-    btn.textContent = "Gửi cảnh báo";
+    newBtn.disabled = false;
+    newBtn.textContent = "Gửi cảnh báo";
   };
 }
 
@@ -280,8 +285,10 @@ function _initMapPicker(lat, lng) {
     center: [lat || 16.047, lng || 108.206],
     zoom: lat ? 15 : 6,
   });
-  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    attribution: "© OpenStreetMap", maxZoom: 19,
+  L.tileLayer("https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
+    subdomains: ["mt0", "mt1", "mt2", "mt3"],
+    attribution: '&copy; <a href="https://www.google.com/maps">Google Maps</a>',
+    maxZoom: 20,
   }).addTo(pickerMap);
   if (lat && lng) _placePickerMarker(lat, lng);
   pickerMap.on("click", e => {
