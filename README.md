@@ -1,176 +1,146 @@
-<div align="center">
+# Trái Tim Việt — Charity Map
 
-# 🫀 Trái Tim Việt
-### Bản đồ từ thiện — Kết nối yêu thương
+A pure frontend SPA that connects donors with locations across Vietnam that need support. No server required — deployed on GitHub Pages with Firebase as the backend.
 
-[![GitHub Pages](https://img.shields.io/badge/Deploy-GitHub%20Pages-222?logo=github&logoColor=white)](https://traitimviet.online)
-[![Firebase](https://img.shields.io/badge/Backend-Firebase-FFCA28?logo=firebase&logoColor=black)](https://firebase.google.com)
-[![Leaflet](https://img.shields.io/badge/Map-Leaflet.js-199900?logo=leaflet&logoColor=white)](https://leafletjs.com)
-[![License](https://img.shields.io/badge/License-MIT-blue)](LICENSE)
-
-> **Pure Frontend SPA** — Không cần server, deploy thẳng lên GitHub Pages.  
-> Kết nối người muốn từ thiện với những địa điểm đang cần hỗ trợ trên toàn Việt Nam.
-
-![Preview](https://traitimviet.online/preview.png)
-
-</div>
+**Live site:** https://traitimviet.online
 
 ---
 
-## ✨ Tính năng
+## Features
 
-| Tính năng | Mô tả |
-|-----------|-------|
-| 🗺️ **Bản đồ tương tác** | Hiển thị địa điểm cần hỗ trợ theo mức độ khẩn cấp |
-| 📍 **Đề xuất địa điểm** | Member đề xuất, admin xét duyệt trước khi lên bản đồ |
-| 🔔 **Thông báo realtime** | Cập nhật trạng thái đề xuất, cảnh báo từ admin |
-| 👥 **Hệ thống cấp bậc** | Tích điểm và thăng cấp khi tham gia từ thiện |
-| 🌙 **Dark / Light mode** | Giao diện tùy chỉnh theo sở thích |
-| 📱 **Responsive** | Tương thích mọi thiết bị |
+- Interactive map showing locations in need, color-coded by urgency
+- Members can suggest new locations; admins review before publishing
+- Realtime notifications for suggestion status and admin warnings
+- Points and rank system for members who participate in charity
+- Dark / Light mode
+- Fully responsive
 
 ---
 
-## 🗂️ Cấu trúc dự án
+## Tech Stack
+
+| Technology | Purpose |
+|------------|---------|
+| Firebase Auth | Login, password reset |
+| Firebase Firestore | Realtime database |
+| Firebase Storage | Location image storage |
+| Firebase Functions | Server-side admin operations |
+| Leaflet.js | Map rendering |
+| Google Maps Tiles | Map tiles |
+| Nominatim | Reverse geocoding |
+| GitHub Pages | Hosting |
+
+All services used are on free tiers.
+
+---
+
+## Project Structure
 
 ```
 trai-tim-viet/
-│
-├── 📄 index.html                   # Shell HTML + Navbar + Auth state
-├── 📄 app.js                       # Entry point — đăng ký routes
-│
-├── 📁 models/                      # M — Data layer
-│   ├── firebase.js                 #   Firebase init & config
-│   ├── UserModel.js                #   User CRUD + rank logic
-│   ├── LocationModel.js            #   Location CRUD + image upload
-│   ├── SuggestionModel.js          #   Đề xuất địa điểm
-│   └── NotificationModel.js        #   Hệ thống thông báo
-│
-├── 📁 controllers/                 # C — Business logic
-│   ├── Router.js                   #   Front Controller (hash routing)
-│   ├── AuthController.js           #   Đăng nhập / Đăng ký / Quên MK
-│   ├── HomeController.js           #   Bản đồ chính + markers
-│   ├── ProfileController.js        #   Hồ sơ + lịch sử điểm
-│   ├── AdminController.js          #   Quản lý địa điểm + người dùng
-│   ├── SuggestionController.js     #   Đề xuất & xét duyệt
-│   └── NotificationController.js   #   Panel thông báo + badge
-│
-├── 📁 views/                       # V — Presentation layer
-│   ├── ViewEngine.js               #   Render HTML strings vào #app
-│   └── components/
-│       └── Toast.js                #   Toast notification component
-│
-└── 📁 public/
-    └── css/
-        └── main.css                # Design system (CSS variables, dark/light)
+├── index.html
+├── app.js                      # Entry point, route registration
+├── models/
+│   ├── firebase.js             # Firebase init & config
+│   ├── UserModel.js            # User CRUD + rank logic
+│   ├── LocationModel.js        # Location CRUD + image upload
+│   ├── SuggestionModel.js      # Location suggestions
+│   └── NotificationModel.js    # Notification system
+├── controllers/
+│   ├── Router.js               # Hash-based front controller
+│   ├── AuthController.js       # Login / Register / Forgot password
+│   ├── HomeController.js       # Main map + markers
+│   ├── ProfileController.js    # User profile + points history
+│   ├── AdminController.js      # Location & user management
+│   ├── SuggestionController.js # Submit & review suggestions
+│   └── NotificationController.js
+├── views/
+│   ├── ViewEngine.js           # Renders HTML strings into #app
+│   └── components/Toast.js
+├── functions/
+│   ├── index.js                # Cloud Function: deleteUser
+│   └── package.json
+└── public/css/main.css         # Design system, CSS variables
 ```
 
 ---
 
-## 🚀 Hướng dẫn triển khai
+## Setup
 
-### Bước 1 — Clone & push lên GitHub
+### 1. Enable GitHub Pages
+
+1. Go to repo Settings → Pages
+2. Source: Deploy from a branch → `main` / `(root)` → Save
+
+### 2. Configure Firebase
+
+- Firebase Console → Authentication → Sign-in method → enable Email/Password
+- Firestore → Indexes → Composite → Add index:
+  - Collection: `notifications`, fields: `toUid` (Asc) + `createdAt` (Desc)
+
+### 3. Deploy Cloud Functions
+
+Required for permanently deleting user accounts from the admin panel.
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/trai-tim-viet.git
-cd trai-tim-viet
+npm install -g firebase-tools
+firebase login
 
-git add .
-git commit -m "🚀 Initial commit"
-git push -u origin main
+cd functions
+npm install
+cd ..
+
+firebase deploy --only functions
 ```
 
-### Bước 2 — Bật GitHub Pages
+### 4. Create a Founder account
 
-1. Vào repo GitHub → **Settings** → **Pages**
-2. Source: **Deploy from a branch**
-3. Branch: `main` / `(root)` → **Save**
-4. Chờ ~1 phút, site sẽ lên tại `https://YOUR_USERNAME.github.io/trai-tim-viet`
-
----
-
-### Bước 3 — Cấu hình Firebase
-
-#### 3.1 Authentication
-- Firebase Console → **Authentication** → **Sign-in method**
-- Bật **Email/Password**
-
-
-#### 3.4 Firestore Composite Index
-Cần tạo index cho tính năng thông báo. Vào **Firestore** → **Indexes** → **Composite** → **Add index**:
-
-| Collection | Field | Order |
-|------------|-------|-------|
-| `notifications` | `toUid` | Ascending |
-| `notifications` | `createdAt` | Descending |
-
-Query scope: **Collection** → **Create**. Chờ status chuyển sang `Enabled`.
+1. Register a normal account through the UI
+2. Firestore Console → `users` collection → find your document
+3. Change the `role` field from `"member"` to `"founder"`
 
 ---
 
-### Bước 4 — Tạo tài khoản Founder
+## Roles & Permissions
 
-1. Đăng ký tài khoản bình thường qua giao diện
-2. Vào **Firestore Console** → collection `users` → tìm document của bạn
-3. Đổi field `role` từ `"member"` thành `"founder"`
+| Role | Permissions |
+|------|-------------|
+| `member` | View map, submit location suggestions |
+| `admin` | Add/edit/delete locations, review suggestions, warn members |
+| `founder` | Full access + manage users |
 
----
+## Member Ranks
 
-## 🔗 Bảng Route
-
-| URL | Trang | Quyền truy cập |
-|-----|-------|----------------|
-| `/home` | Bản đồ chính | Tất cả |
-| `/login` | Đăng nhập | Guest |
-| `/register` | Đăng ký | Guest |
-| `/forgot-password` | Quên mật khẩu | Guest |
-| `/profile` | Hồ sơ cá nhân | Member+ |
-| `/suggest` | Đề xuất địa điểm | Member |
-| `/admin/dashboard` | Quản lý địa điểm | Admin / Founder |
-| `/admin/locations/new` | Thêm địa điểm | Admin / Founder |
-| `/admin/locations/:id/edit` | Sửa địa điểm | Admin / Founder |
-| `/admin/suggestions` | Xét duyệt đề xuất | Admin / Founder |
-| `/admin/users` | Quản lý người dùng | Founder |
+| Rank | Points required |
+|------|----------------|
+| Dong Long | 0 |
+| Tam Long Bac | 5 |
+| Vang Tam | 15 |
+| Trai Tim Vang | 30 |
 
 ---
 
-## 👑 Hệ thống phân quyền & cấp bậc
+## Routes
 
-### Vai trò (Role)
-
-| Vai trò | Hiển thị | Quyền hạn |
-|---------|----------|-----------|
-| `member` | Đồng Lòng → … | Xem bản đồ, đề xuất địa điểm |
-| `admin` | Người Dẫn Lửa | Thêm/sửa/xóa địa điểm, duyệt đề xuất, cảnh báo member |
-| `founder` | Người Sáng Lập | Toàn quyền + quản lý người dùng |
-
-### Cấp bậc Member (theo điểm)
-
-| Cấp bậc | Điểm tối thiểu |
-|---------|---------------|
-| 🤝 Đồng Lòng | 0 |
-| 💙 Tâm Lòng Bắc | 5 |
-| ⭐ Vàng Tâm | 15 |
-| 🏆 Trái Tim Vàng | 30 |
+| URL | Page | Access |
+|-----|------|--------|
+| `/home` | Main map | Everyone |
+| `/login` | Login | Guest |
+| `/register` | Register | Guest |
+| `/forgot-password` | Forgot password | Guest |
+| `/profile` | User profile | Member+ |
+| `/suggest` | Suggest a location | Member |
+| `/admin/dashboard` | Manage locations | Admin / Founder |
+| `/admin/locations/new` | Add location | Admin / Founder |
+| `/admin/locations/:id/edit` | Edit location | Admin / Founder |
+| `/admin/suggestions` | Review suggestions | Admin / Founder |
+| `/admin/users` | Manage users | Founder |
 
 ---
 
-## 🛠️ Công nghệ sử dụng
+## Config
 
-| Công nghệ | Mục đích | Chi phí |
-|-----------|----------|---------|
-| Firebase Auth | Đăng nhập, reset password | Miễn phí |
-| Firebase Firestore | Cơ sở dữ liệu realtime | Miễn phí (1GB) |
-| Firebase Storage | Lưu trữ ảnh địa điểm | Miễn phí (5GB) |
-| Leaflet.js | Thư viện bản đồ | Miễn phí / OSS |
-| Google Maps Tiles | Tile bản đồ | Miễn phí |
-| Nominatim | Reverse geocoding | Miễn phí |
-| GitHub Pages | Hosting | Miễn phí |
-
----
-
-## 📁 Môi trường & Config
-
-Cấu hình Firebase nằm trong `models/firebase.js`. Nếu muốn dùng project Firebase của riêng bạn, thay thế toàn bộ object `firebaseConfig`:
+Firebase config is in `models/firebase.js`. To use your own Firebase project:
 
 ```js
 const firebaseConfig = {
@@ -185,47 +155,4 @@ const firebaseConfig = {
 
 ---
 
-## ☁️ Cloud Functions
-
-Project sử dụng **Firebase Cloud Functions (Gen 2)** để thực hiện các tác vụ cần Admin SDK mà client không thể làm được.
-
-### Hàm hiện có
-
-| Hàm | Phương thức | Mô tả |
-|-----|-------------|-------|
-| `deleteUser` | POST | Xóa hoàn toàn user (Auth + Firestore). Chỉ `founder` mới được gọi. |
-
-### Deploy Cloud Functions
-
-> Chỉ cần làm **một lần** khi setup, hoặc khi sửa code trong `functions/`.
-
-**Yêu cầu:** Node.js, Firebase CLI (`npm install -g firebase-tools`)
-
-```bash
-# 1. Đăng nhập Firebase
-firebase login
-
-# 2. Cài dependencies
-cd functions
-npm install
-cd ..
-
-# 3. Deploy
-firebase deploy --only functions
-```
-
-### Cấu trúc thư mục functions
-
-```
-functions/
-├── index.js        # Định nghĩa các Cloud Functions
-└── package.json    # Dependencies (firebase-admin, firebase-functions)
-```
-
----
-
-<div align="center">
-
-Made with ❤️ for Vietnam
-
-</div>
+Made with love for Vietnam.
