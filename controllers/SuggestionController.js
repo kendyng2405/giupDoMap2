@@ -39,12 +39,9 @@ function _initSuggestionForm(user, userData) {
   let pickerMap = L.map("suggest-map", {
     center: [16.047, 108.206], zoom: 6,
   });
-  L.tileLayer("https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
-        subdomains: ["mt0", "mt1", "mt2", "mt3"],
-        attribution: '&copy; <a href="https://www.google.com/maps">Google Maps</a>',
-        maxZoom: 20,
-      }).addTo(mapInstance);
-      mapInstance.invalidateSize();
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    attribution: "© OpenStreetMap", maxZoom: 19,
+  }).addTo(pickerMap);
 
   let pickerMarker = null;
   const latInput = document.getElementById("suggest-lat");
