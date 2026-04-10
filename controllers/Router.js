@@ -11,6 +11,7 @@ class Router {
     this._authReady = false;
     this._authReadyResolve = null;
     this.authReady = new Promise(r => this._authReadyResolve = r);
+    this._renderGen = 0; // ← guard chống race condition
   }
 
   register(path, handler) {
@@ -87,6 +88,8 @@ class Router {
   }
 
   async _renderCurrent() {
+    const gen = ++this._renderGen; // mỗi lần render lấy một số thế hệ mới
+
     const path = this._getCurrentPath();
     let handler = this.routes[path];
     let params = {};
@@ -115,6 +118,9 @@ class Router {
       </div>`;
       return;
     }
+
+    // Nếu trong lúc chờ đã có render mới hơn được gọi → huỷ cái này
+    if (gen !== this._renderGen) return;
 
     document.querySelectorAll("[data-nav]").forEach(el => {
       el.classList.toggle("active", el.dataset.nav === path);
