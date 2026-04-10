@@ -135,7 +135,8 @@ function _initUserManagement(currentUserData) {
       return;
     }
 
-    // Delete
+    // FIX #8: Delete — gọi UserModel.deleteUser thay vì deleteUserDoc
+    // để xóa cả Auth account lẫn Firestore doc qua Cloud Function
     const delBtn = e.target.closest(".delete-user-btn");
     if (delBtn) {
       const uid  = delBtn.dataset.uid;
@@ -144,9 +145,9 @@ function _initUserManagement(currentUserData) {
         Toast.show("Không thể xóa tài khoản của chính mình.", "error");
         return;
       }
-      if (!confirm(`Xác nhận xóa tài khoản "${name}"?\n(Chỉ xóa dữ liệu, không xóa tài khoản đăng nhập)`)) return;
+      if (!confirm(`Xác nhận xóa tài khoản "${name}"?\n(Xóa hoàn toàn, user không thể đăng nhập lại)`)) return;
       try {
-        await UserModel.deleteUserDoc(uid);
+        await UserModel.deleteUser(uid);
         delBtn.closest("tr").remove();
         Toast.show("Đã xóa người dùng.");
       } catch (err) {
