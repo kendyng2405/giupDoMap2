@@ -19,7 +19,14 @@ admin.initializeApp();
  *
  * Chỉ được gọi bởi user có role = "founder".
  */
-exports.deleteUser = onCall(async (request) => {
+exports.deleteUser = onCall(
+  {
+    cors: [
+      "https://traitimviet.online",
+      "https://www.traitimviet.online",
+    ],
+  },
+  async (request) => {
   // 1. Xác thực người gọi
   const callerUid = request.auth?.uid;
   if (!callerUid) {
@@ -48,4 +55,5 @@ exports.deleteUser = onCall(async (request) => {
   ]);
 
   return { success: true };
-});
+  }
+);
