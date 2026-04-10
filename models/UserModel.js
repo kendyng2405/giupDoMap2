@@ -16,6 +16,10 @@ import {
 import {
   ref, uploadBytes, getDownloadURL
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+import {
+  getFunctions,
+  httpsCallable
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
 
 export const RANKS = [
   { name: "Đồng Lòng",     minPoints: 0,  color: "#CD7F32", next: 5  },
@@ -135,9 +139,12 @@ export const UserModel = {
     return url;
   },
 
-  // Admin: xóa tài khoản (Firestore user doc, không xóa Auth vì cần Admin SDK)
-  async deleteUserDoc(uid) {
-    await deleteDoc(doc(db, "users", uid));
+  // FIX #8: Gọi Cloud Function để xóa cả Auth account lẫn Firestore doc
+  // (Client SDK không thể xóa Auth account của người khác)
+  async deleteUser(uid) {
+    const functions = getFunctions();
+    const deleteUserFn = httpsCallable(functions, "deleteUser");
+    await deleteUserFn({ uid });
   },
 
   // Founder: update role
