@@ -185,6 +185,45 @@ const firebaseConfig = {
 
 ---
 
+## ☁️ Cloud Functions
+
+Project sử dụng **Firebase Cloud Functions (Gen 2)** để thực hiện các tác vụ cần Admin SDK mà client không thể làm được.
+
+### Hàm hiện có
+
+| Hàm | Phương thức | Mô tả |
+|-----|-------------|-------|
+| `deleteUser` | POST | Xóa hoàn toàn user (Auth + Firestore). Chỉ `founder` mới được gọi. |
+
+### Deploy Cloud Functions
+
+> Chỉ cần làm **một lần** khi setup, hoặc khi sửa code trong `functions/`.
+
+**Yêu cầu:** Node.js, Firebase CLI (`npm install -g firebase-tools`)
+
+```bash
+# 1. Đăng nhập Firebase
+firebase login
+
+# 2. Cài dependencies
+cd functions
+npm install
+cd ..
+
+# 3. Deploy
+firebase deploy --only functions
+```
+
+### Cấu trúc thư mục functions
+
+```
+functions/
+├── index.js        # Định nghĩa các Cloud Functions
+└── package.json    # Dependencies (firebase-admin, firebase-functions)
+```
+
+---
+
 <div align="center">
 
 Made with ❤️ for Vietnam
