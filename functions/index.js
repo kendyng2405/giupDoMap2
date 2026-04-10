@@ -1,16 +1,12 @@
 // functions/index.js
-// Firebase Cloud Functions — cần deploy lên Firebase để xóa Auth account
-//
-// Setup (chạy một lần nếu chưa có thư mục functions):
-//   firebase init functions   (chọn JavaScript, không dùng ESLint)
-//   cd functions && npm install
-//
-// Deploy:
-//   firebase deploy --only functions
-
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onRequest } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 admin.initializeApp();
+
+const ALLOWED_ORIGINS = [
+  "https://traitimviet.online",
+  "https://www.traitimviet.online",
+];
 
 /**
  * deleteUser — Xóa hoàn toàn một user:
@@ -19,41 +15,69 @@ admin.initializeApp();
  *
  * Chỉ được gọi bởi user có role = "founder".
  */
-exports.deleteUser = onCall(
-  {
-    cors: [
-      "https://traitimviet.online",
-      "https://www.traitimviet.online",
-    ],
-  },
-  async (request) => {
-  // 1. Xác thực người gọi
-  const callerUid = request.auth?.uid;
-  if (!callerUid) {
-    throw new HttpsError("unauthenticated", "Bạn chưa đăng nhập.");
+exports.deleteUser = onRequest(async (req, res) => {
+  // ── CORS ──────────────────────────────────────────────
+  const origin = req.headers.origin;
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.set("Access-Control-Allow-Origin", origin);
+  }
+  res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  res.set("Access-Control-Max-Age", "3600");
+
+  if (req.method === "OPTIONS") {
+    res.status(204).send("");
+    return;
   }
 
-  // 2. Kiểm tra quyền founder
-  const callerDoc = await admin.firestore().doc(`users/${callerUid}`).get();
-  if (callerDoc.data()?.role !== "founder") {
-    throw new HttpsError("permission-denied", "Chỉ founder mới có quyền xóa tài khoản.");
+  if (req.method !== "POST") {
+    res.status(405).json({ error: "Method not allowed" });
+    return;
   }
 
-  // 3. Validate input
-  const { uid } = request.data;
-  if (!uid || typeof uid !== "string") {
-    throw new HttpsError("invalid-argument", "Thiếu hoặc sai định dạng uid.");
-  }
-  if (uid === callerUid) {
-    throw new HttpsError("invalid-argument", "Không thể xóa tài khoản của chính mình.");
-  }
+  try {
+    // ── Xác thực Firebase ID Token ─────────────────────
+    const authHeader = req.headers.authorization || "";
+    const idToken = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7)
+      : null;
 
-  // 4. Xóa song song Auth + Firestore
-  await Promise.all([
-    admin.auth().deleteUser(uid),
-    admin.firestore().doc(`users/${uid}`).delete(),
-  ]);
+    if (!idToken) {
+      res.status(401).json({ error: "Chưa đăng nhập." });
+      return;
+    }
 
-  return { success: true };
+    const decoded = await admin.auth().verifyIdToken(idToken);
+    const callerUid = decoded.uid;
+
+    // ── Kiểm tra quyền founder ─────────────────────────
+    const callerDoc = await admin.firestore().doc(`users/${callerUid}`).get();
+    if (callerDoc.data()?.role !== "founder") {
+      res.status(403).json({ error: "Chỉ founder mới có quyền xóa tài khoản." });
+      return;
+    }
+
+    // ── Validate input ─────────────────────────────────
+    const { uid } = req.body;
+    if (!uid || typeof uid !== "string") {
+      res.status(400).json({ error: "Thiếu hoặc sai định dạng uid." });
+      return;
+    }
+    if (uid === callerUid) {
+      res.status(400).json({ error: "Không thể xóa tài khoản của chính mình." });
+      return;
+    }
+
+    // ── Xóa Auth + Firestore ───────────────────────────
+    await Promise.all([
+      admin.auth().deleteUser(uid),
+      admin.firestore().doc(`users/${uid}`).delete(),
+    ]);
+
+    res.status(200).json({ success: true });
+
+  } catch (err) {
+    console.error("deleteUser error:", err);
+    res.status(500).json({ error: err.message });
   }
-);
+});
